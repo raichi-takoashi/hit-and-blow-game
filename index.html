@@ -1376,7 +1376,7 @@
         });
         renderHistories();
 
-        await showFlash("ユーザーの判定", formatResult(userResult), arrayToKey(userGuess));
+        await showFlash("ユーザーの判定", formatResult(userResult), arrayToKey(userGuess), 5000);
 
         if (userResult.hit === state.digitCount) {
           endGame("user");
@@ -1592,61 +1592,104 @@
         renderCpuSecretSlots(-1, false, Array(state.digitCount).fill("？"), []);
       }
 
+      function buildCpuThinkingMessages({
+        difficultyLabel,
+        beforeFilterCount,
+        afterFilterCount,
+        guess,
+        lastHistory,
+        digitCount
+      }) {
+        const guessText = arrayToKey(guess);
+        const messages = [];
+
+        if (lastHistory) {
+          messages.push(
+            `前回 ${arrayToKey(lastHistory.guess)} の ${lastHistory.result.hit}Hit ${lastHistory.result.blow}Blow と矛盾する候補を除外しています…`
+          );
+        } else {
+          messages.push("初手なので、全候補から探索を始めています…");
+        }
+
+        messages.push(`候補数を ${beforeFilterCount} 通りから ${afterFilterCount} 通りまで絞り込んでいます…`);
+
+        if (state.difficulty === "weak") {
+          messages.push("よわいモードなので、過去結果は参考程度にしてランダム寄りに候補を見ています…");
+          messages.push("まだ使っていない予想の中から、条件を満たす数字を拾っています…");
+        } else if (state.difficulty === "normal") {
+          messages.push("ふつうモードなので、当たりそうな数字や位置をやや強めに仮定しています…");
+          messages.push("Hitが出た桁は本命として残し、外れた可能性の高い数字を避けています…");
+          messages.push("確信が薄い部分には、少し博打の候補も混ぜています…");
+        } else if (state.difficulty === "strong") {
+          messages.push("つよいモードなので、残候補ごとに返答パターンの分かれ方を比較しています…");
+          messages.push("次の1手で候補を大きく割れる予想を探しています…");
+          messages.push("今すぐ当たる可能性と、次ターンの絞り込み効率を両方見ています…");
+        } else {
+          messages.push("つよくなるモードなので、残候補の分割効率に加えて過去の選ばれやすさも加味しています…");
+          messages.push("このブラウザに保存された過去対戦の傾向から、選ばれやすい数字を重み付けしています…");
+          messages.push("当てやすさだけでなく、次のターンで候補を削りやすい手も比較しています…");
+        }
+
+        messages.push(`今回の有力候補は ${guessText} です。正答率と次の分割効率を見て最終確認しています…`);
+        messages.push("表示演出のため、どの桁から見せるかを決めています…");
+        messages.push(`${difficultyLabel}モードで、今回は ${digitCount} 桁の確定順を整理しています…`);
+
+        return messages;
+      }
+
+      async function animateCpuThinkingStatus(totalDuration, messages) {
+        if (!messages.length || totalDuration <= 0) return;
+
+        const minStep = 1200;
+        const maxStep = 2200;
+        const steps = Math.max(1, Math.floor(totalDuration / 1500));
+
+        const expanded = [];
+        for (let i = 0; i < steps; i++) {
+          expanded.push(messages[i % messages.length]);
+        }
+
+        let remaining = totalDuration;
+        for (let i = 0; i < expanded.length; i++) {
+          const slotsLeft = expanded.length - i;
+          const step = i === expanded.length - 1
+            ? remaining
+            : Math.max(minStep, Math.min(maxStep, Math.floor(remaining / slotsLeft)));
+
+          setThinking("CPUが考え中…", expanded[i]);
+          await sleep(step);
+          remaining -= step;
+        }
+      }
+
       async function processCpuTurn() {
         const beforeFilterCount = state.cpuPossibleAnswers.length;
         state.cpuPossibleAnswers = filterCandidatesByHistory(state.cpuPossibleAnswers, state.cpuHistory);
         const afterFilterCount = state.cpuPossibleAnswers.length;
 
-        const startTime = performance.now();
+        const calcStart = performance.now();
         const diffLabel = getDifficultyMeta(state.difficulty).label;
         const guess = chooseCpuGuess();
-        const elapsedCalc = performance.now() - startTime;
+        const calcElapsed = performance.now() - calcStart;
 
         const minShowTime = 5000;
         const maxShowTime = 60000;
-        const targetTime = Math.min(maxShowTime, Math.max(minShowTime, elapsedCalc + 5000));
+        const targetTime = Math.min(maxShowTime, Math.max(minShowTime, calcElapsed + 5000));
 
-        const lastHistory = state.cpuHistory[state.cpuHistory.length - 1];
-        const lastLine = lastHistory
-          ? `前回の予想 ${arrayToKey(lastHistory.guess)} の結果 ${lastHistory.result.hit}Hit ${lastHistory.result.blow}Blow と矛盾する候補を除外しています…`
-          : "初手なので、すべての候補から出発しています…";
-
-        const candidateLine =
-          `候補数を ${beforeFilterCount} 通りから ${afterFilterCount} 通りまで絞っています…`;
-
-        let modeLine = "";
-        if (state.difficulty === "weak") {
-          modeLine = "よわいなので、過去結果との整合は深く考えずランダム寄りに選んでいます…";
-        } else if (state.difficulty === "normal") {
-          modeLine = "ふつうなので、当たりそうな数字や位置を強めに信じつつ、少し博打も混ぜています…";
-        } else if (state.difficulty === "strong") {
-          modeLine = "つよいなので、残っている全候補に対して応答パターンの分かれ方が良い手を探しています…";
-        } else {
-          modeLine = "つよくなるなので、全候補の分割効率に加えて、過去にあなたが選びやすかった数字傾向も重みにしています…";
-        }
-
-        const guessLine =
-          `今回の予想候補 ${arrayToKey(guess)} は、今当たる可能性と次ターン以降の絞り込みやすさの両方を見て選んでいます…`;
-
-        const revealLine =
-          "確定した桁から順に表示します。まだ確信の薄い桁は後回しになることがあります…";
-
-        const thoughtLines = [
-          lastLine,
-          candidateLine,
-          modeLine,
-          guessLine,
-          revealLine
-        ];
-
+        const lastHistory = state.cpuHistory[state.cpuHistory.length - 1] || null;
         const revealTime = state.digitCount * 700 + 300;
         const thinkingBudget = Math.max(0, targetTime - revealTime);
-        const perStep = Math.max(700, Math.floor(thinkingBudget / thoughtLines.length || 700));
 
-        for (let i = 0; i < thoughtLines.length; i++) {
-          setThinking("CPUが考え中…", thoughtLines[i]);
-          await sleep(perStep);
-        }
+        const messages = buildCpuThinkingMessages({
+          difficultyLabel: diffLabel,
+          beforeFilterCount,
+          afterFilterCount,
+          guess,
+          lastHistory,
+          digitCount: state.digitCount
+        });
+
+        await animateCpuThinkingStatus(thinkingBudget, messages);
 
         setThinking("CPUが考え中…", `予想 ${arrayToKey(guess)} を、確定した桁から表示しています…`);
         await animateCpuGuessReveal(guess);
@@ -1658,7 +1701,7 @@
         });
 
         renderHistories();
-        await showFlash("CPUの判定", formatResult(cpuResult), arrayToKey(guess));
+        await showFlash("CPUの判定", formatResult(cpuResult), arrayToKey(guess), 1600);
 
         if (cpuResult.hit === state.digitCount) {
           endGame("cpu");

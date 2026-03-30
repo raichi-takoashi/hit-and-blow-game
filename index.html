@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Hit & Blow VS CPU</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #1b2138;
+      --panel-2: #222b47;
+      --line: #334067;
+      --text: #eef2ff;
+      --muted: #9fb0de;
+      --accent: #69a8ff;
+      --accent-2: #8bf0c7;
+      --warn: #ffd56a;
+      --shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: linear-gradient(180deg, #0b0f1a 0%, #10162a 100%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 520px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(circle at top right, rgba(105,168,255,0.08), transparent 35%),
+        radial-gradient(circle at bottom left, rgba(139,240,199,0.07), transparent 30%);
+    }
+
+    .screen {
+      display: none;
+      flex: 1;
+      padding: 14px;
+      gap: 12px;
+      flex-direction: column;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    .card {
+      background: rgba(27, 33, 56, 0.95);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .header {
+      padding: 16px 16px 8px;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .section {
+      padding: 14px 16px;
+    }
+
+    .label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .option-button {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      min-height: 56px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .option-button small {
+      display: block;
+      color: var(--muted);
+      margin-top: 3px;
+      font-weight: 500;
+      font-size: 11px;
+    }
+
+    .option-button.selected {
+      border-color: var(--accent);
+      outline: 2px solid rgba(105, 168, 255, 0.22);
+      background: linear-gradient(180deg, rgba(105,168,255,0.15), rgba(34,43,71,1));
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .grow {
+      flex: 1;
+    }
+
+    .button {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #263056, #202845);
+      color: var(--text);
+      border-radius: 14px;
+      min-height: 48px;
+      padding: 0 16px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .button.primary {
+      background: linear-gradient(180deg, #5d95ff, #4479e0);
+      border-color: #6aa2ff;
+      color: white;
+    }
+
+    .button.warn {
+      background: linear-gradient(180deg, #6a5630, #574522);
+      border-color: #93723f;
+      color: #fff2ce;
+    }
+
+    .button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .status-card {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .status-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .badge {
+      background: rgba(105, 168, 255, 0.15);
+      color: #cfe0ff;
+      border: 1px solid rgba(105, 168, 255, 0.35);
+      font-size: 11px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .turn {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .thinking {
+      min-height: 58px;
+      color: #d6e4ff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .thinking small {
+      display: block;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .panel-block {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .panel-sub {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .digit-slots {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .slot {
+      width: 48px;
+      height: 56px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #0f1630;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      transition: 0.18s ease;
+    }
+
+    .slot.hidden {
+      color: #8aa2df;
+    }
+
+    .slot.animating {
+      border-color: var(--warn);
+      color: var(--warn);
+      box-shadow: 0 0 0 2px rgba(255, 213, 106, 0.12);
+      transform: scale(1.04);
+    }
+
+    .slot.revealed {
+      border-color: var(--accent);
+      color: #ffffff;
+      background: #122042;
+    }
+
+    .history-wrap {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .history-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history-title {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .history-sub {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .history {
+      min-height: 140px;
+      max-height: 220px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+    }
+
+    .history-col + .history-col {
+      border-left: 1px solid var(--line);
+    }
+
+    .history-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: rgba(27, 33, 56, 0.98);
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      padding: 8px 10px;
+    }
+
+    .history-list {
+      padding: 6px 0;
+    }
+
+    .history-row {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      border-bottom: 1px solid rgba(51, 64, 103, 0.55);
+      font-size: 14px;
+      font-weight: 700;
+      word-break: break-all;
+    }
+
+    .history-row.dim {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .result-good {
+      color: var(--accent-2);
+    }
+
+    .center-panel {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-card {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-title {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .current-guess {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .current-slot {
+      width: 42px;
+      height: 50px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #0d142b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .current-slot.empty {
+      color: #7283b2;
+    }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .key {
+      min-height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #222c4c, #1b2340);
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .key.used {
+      opacity: 0.4;
+    }
+
+    .key.action {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 12, 22, 0.86);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 40;
+    }
+
+    .overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      background: #18203a;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .modal-body {
+      padding: 14px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .result-summary {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .winner {
+      font-size: 26px;
+      font-weight: 900;
+      margin: 0;
+    }
+
+    .winner.user {
+      color: var(--accent-2);
+    }
+
+    .winner.cpu {
+      color: #ffd2d9;
+    }
+
+    .tiny {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .flash-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 60;
+      padding: 24px;
+    }
+
+    .flash-overlay.active {
+      display: flex;
+    }
+
+    .flash-box {
+      min-width: 220px;
+      max-width: 90vw;
+      background: rgba(14, 21, 39, 0.94);
+      border: 1px solid rgba(105, 168, 255, 0.4);
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
+      border-radius: 18px;
+      padding: 20px 18px;
+      text-align: center;
+      transform: scale(0.95);
+      animation: popIn 0.18s ease forwards;
+    }
+
+    .flash-title {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .flash-main {
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    .flash-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @media (max-height: 760px) {
+      .slot {
+        width: 42px;
+        height: 50px;
+        font-size: 23px;
+      }
+
+      .history-row {
+        min-height: 32px;
+      }
+
+      .key {
+        min-height: 44px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section id="screen-start" class="screen active">
+      <div class="card header">
+        <h1 class="title">Hit & Blow VS CPU</h1>
+        <p class="subtitle">
+          1〜9のみ、重複なし。CPUより先に相手の数字を当てれば勝ちです。
+        </p>
+      </div>
+
+      <div class="card section">
+        <div class="label">CPUの強さ</div>
+        <div class="option-grid" id="difficulty-options"></div>
+      </div>
+
+      <div class="card section">
+        <div class="label">桁数</div>
+        <div class="option-grid" id="digit-options"></div>
+      </div>
+
+      <div class="card section">
+        <div class="row">
+          <button class="button grow" id="rule-btn">ルール説明</button>
+          <button class="button warn grow" id="reset-learning-btn">つよくなるの学習を削除</button>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="button primary grow" id="start-btn">ゲーム開始</button>
+        </div>
+        <div class="tiny" id="learning-info"></div>
+      </div>
+    </section>
+
+    <section id="screen-secret" class="screen">
+      <div class="card panel-block">
+        <div class="panel-title">あなたの秘密数字を入力してください</div>
+        <div class="panel-sub">同じ数字は使えません。0は使いません。</div>
+        <div class="digit-slots" id="secret-input-slots"></div>
+      </div>
+
+      <div class="card center-panel">
+        <div class="input-card">
+          <div class="input-top">
+            <div class="input-title">秘密数字入力</div>
+            <div class="badge" id="secret-setup-badge"></div>
+          </div>
+          <div class="keypad" id="secret-keypad"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-game" class="screen">
+      <div class="card status-card">
+        <div class="status-top">
+          <div class="badge" id="game-mode-badge"></div>
+          <div class="row">
+            <div class="turn" id="turn-label"></div>
+            <button class="button" id="retire-btn" style="min-height:36px;padding:0 12px;font-size:12px;">リタイア</button>
+          </div>
+        </div>
+        <div class="thinking" id="thinking-text">準備完了</div>
+      </div>
+
+      <div class="card history-wrap">
+        <div class="history-header">
+          <div>
+            <div class="history-title">ユーザー予想数字</div>
+            <div class="history-sub">左：予想数字 / 右：Hit・Blow</div>
+          </div>
+          <div class="badge">USER</div>
+        </div>
+        <div class="history">
+          <div class="history-col">
+            <div class="history-head">予想数字</div>
+            <div class="history-list" id="user-guess-list"></div>
+          </div>
+          <div class="history-col">
+            <div class="history-head">結果</div>
+            <div class="history-list" id="user-result-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card center-panel">
+        <div class="input-card">
+          <div class="input-top">
+            <div class="input-title" id="input-phase-label">ユーザー入力欄</div>
+            <div class="badge" id="guess-badge"></div>
+          </div>
+          <div class="current-guess" id="current-guess-slots"></div>
+          <div class="keypad" id="game-keypad"></div>
+        </div>
+      </div>
+
+      <div class="card panel-block">
+        <div class="panel-title">CPUの秘密数字</div>
+        <div class="panel-sub">対戦中は非公開です。終了時に公開されます。</div>
+        <div class="digit-slots" id="cpu-secret-slots"></div>
+      </div>
+
+      <div class="card history-wrap">
+        <div class="history-header">
+          <div>
+            <div class="history-title">CPU予想数字</div>
+            <div class="history-sub">左：予想数字 / 右：Hit・Blow</div>
+          </div>
+          <div class="badge">CPU</div>
+        </div>
+        <div class="history">
+          <div class="history-col">
+            <div class="history-head">予想数字</div>
+            <div class="history-list" id="cpu-guess-list"></div>
+          </div>
+          <div class="history-col">
+            <div class="history-head">結果</div>
+            <div class="history-list" id="cpu-result-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="result-overlay" class="overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">対戦結果</h2>
+      </div>
+      <div class="modal-body">
+        <p id="winner-text" class="winner"></p>
+        <div id="result-summary" class="result-summary"></div>
+        <div class="row">
+          <button class="button grow" id="back-to-menu-btn">設定に戻る</button>
+          <button class="button primary grow" id="play-again-btn">もう一度遊ぶ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="flash-overlay" class="flash-overlay">
+    <div class="flash-box">
+      <div class="flash-title" id="flash-title"></div>
+      <div class="flash-main" id="flash-main"></div>
+      <div class="flash-sub" id="flash-sub"></div>
+    </div>
+  </div>
+
+  <div id="rule-overlay" class="overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">ルール説明</h2>
+      </div>
+      <div class="modal-body">
+        <div class="result-summary">
+          <div><strong>■ 基本ルール</strong></div>
+          <div>
+            あなたとCPUがそれぞれ、1〜9の重複なしの秘密数字を決めます。<br>
+            桁数は 2〜5桁 から選べます。
+          </div>
+
+          <div style="margin-top:10px;"><strong>■ 勝利条件</strong></div>
+          <div>
+            あなたがCPUの秘密数字を先に当てれば勝ちです。<br>
+            あなたは先攻です。あなたが当てたターンは、CPUの後攻は行われません。
+          </div>
+
+          <div style="margin-top:10px;"><strong>■ Hit / Blow</strong></div>
+          <div>
+            Hit は「数字も位置も一致」、Blow は「数字はあるが位置が違う」です。<br>
+            例: 正解が 123 で、予想が 132 の場合は 1 Hit / 2 Blow です。
+          </div>
+
+          <div style="margin-top:10px;"><strong>■ 入力ルール</strong></div>
+          <div>
+            0は使いません。<br>
+            同じ数字は1回しか使えません。
+          </div>
+
+          <div style="margin-top:10px;"><strong>■ CPUの強さ</strong></div>
+          <div>
+            よわい: ランダム寄りに予想します。<br>
+            ふつう: 過去結果からある程度推理しつつ、少し博打を混ぜます。<br>
+            つよい: 候補全体を絞り込み、次に有利な予想を選びます。<br>
+            つよくなる: つよいの思考に加えて、過去の対戦傾向を学習します。
+          </div>
+
+          <div style="margin-top:10px;"><strong>■ つよくなるモード</strong></div>
+          <div>
+            このモードでは、過去にあなたが選びやすかった数字や、当てにくかったCPU数字の傾向を記録します。<br>
+            学習データはこのブラウザ内に保存されます。
+          </div>
+
+          <div style="margin-top:10px;"><strong>■ リタイア</strong></div>
+          <div>
+            対戦中にリタイアを押すと、その場で敗北となり結果画面が表示されます。
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="button primary grow" id="close-rule-btn">閉じる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const DIFFICULTIES = [
+        { id: "weak", label: "よわい", desc: "毎回ランダム寄り" },
+        { id: "normal", label: "ふつう", desc: "半分推理、半分博打" },
+        { id: "strong", label: "つよい", desc: "候補を網羅的に絞る" },
+        { id: "growing", label: "つよくなる", desc: "強い＋過去の癖を学習" }
+      ];
+
+      const DIGIT_COUNTS = [2, 3, 4, 5];
+      const DIGIT_SYMBOLS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+      const LEARNING_STORAGE_KEY = "hitblow_growing_learning_v1";
+
+      const state = {
+        phase: "start",
+        difficulty: "weak",
+        digitCount: 3,
+        userSecret: [],
+        cpuSecret: [],
+        cpuSecretLocked: false,
+        turn: 1,
+        currentInput: [],
+        inputMode: "secret",
+        winner: null,
+        endReason: "",
+        userHistory: [],
+        cpuHistory: [],
+        allCandidates: [],
+        cpuPossibleAnswers: [],
+        cpuUsedGuesses: [],
+        cpuWorkingMemory: null,
+        isCpuThinking: false,
+        isCpuSelectingSecret: false,
+        lastModeConfig: null
+      };
+
+      const ui = {
+        screenStart: document.getElementById("screen-start"),
+        screenSecret: document.getElementById("screen-secret"),
+        screenGame: document.getElementById("screen-game"),
+
+        difficultyOptions: document.getElementById("difficulty-options"),
+        digitOptions: document.getElementById("digit-options"),
+        ruleBtn: document.getElementById("rule-btn"),
+        startBtn: document.getElementById("start-btn"),
+        resetLearningBtn: document.getElementById("reset-learning-btn"),
+        learningInfo: document.getElementById("learning-info"),
+
+        secretInputSlots: document.getElementById("secret-input-slots"),
+        secretKeypad: document.getElementById("secret-keypad"),
+        secretSetupBadge: document.getElementById("secret-setup-badge"),
+
+        gameModeBadge: document.getElementById("game-mode-badge"),
+        turnLabel: document.getElementById("turn-label"),
+        thinkingText: document.getElementById("thinking-text"),
+        retireBtn: document.getElementById("retire-btn"),
+        cpuSecretSlots: document.getElementById("cpu-secret-slots"),
+
+        userGuessList: document.getElementById("user-guess-list"),
+        userResultList: document.getElementById("user-result-list"),
+        cpuGuessList: document.getElementById("cpu-guess-list"),
+        cpuResultList: document.getElementById("cpu-result-list"),
+
+        inputPhaseLabel: document.getElementById("input-phase-label"),
+        guessBadge: document.getElementById("guess-badge"),
+        currentGuessSlots: document.getElementById("current-guess-slots"),
+        gameKeypad: document.getElementById("game-keypad"),
+
+        resultOverlay: document.getElementById("result-overlay"),
+        winnerText: document.getElementById("winner-text"),
+        resultSummary: document.getElementById("result-summary"),
+        backToMenuBtn: document.getElementById("back-to-menu-btn"),
+        playAgainBtn: document.getElementById("play-again-btn"),
+
+        flashOverlay: document.getElementById("flash-overlay"),
+        flashTitle: document.getElementById("flash-title"),
+        flashMain: document.getElementById("flash-main"),
+        flashSub: document.getElementById("flash-sub"),
+
+        ruleOverlay: document.getElementById("rule-overlay"),
+        closeRuleBtn: document.getElementById("close-rule-btn")
+      };
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      function randomInt(max) {
+        return Math.floor(Math.random() * max);
+      }
+
+      function choice(array) {
+        return array[randomInt(array.length)];
+      }
+
+      function arrayToKey(arr) {
+        return arr.join("");
+      }
+
+      function generatePermutations(sourceDigits, length) {
+        const results = [];
+        const used = Array(sourceDigits.length).fill(false);
+        const current = [];
+
+        function dfs(depth) {
+          if (depth === length) {
+            results.push(current.slice());
+            return;
+          }
+          for (let i = 0; i < sourceDigits.length; i++) {
+            if (used[i]) continue;
+            used[i] = true;
+            current.push(sourceDigits[i]);
+            dfs(depth + 1);
+            current.pop();
+            used[i] = false;
+          }
+        }
+
+        dfs(0);
+        return results;
+      }
+
+      function scoreHitBlow(secret, guess) {
+        let hit = 0;
+        let blow = 0;
+        for (let i = 0; i < guess.length; i++) {
+          if (guess[i] === secret[i]) {
+            hit++;
+          } else if (secret.includes(guess[i])) {
+            blow++;
+          }
+        }
+        return { hit, blow };
+      }
+
+      function scoreToKey(score) {
+        return `${score.hit}-${score.blow}`;
+      }
+
+      function formatResult(score) {
+        if (score.hit === state.digitCount) {
+          return `${score.hit} Hit`;
+        }
+        return `${score.hit} Hit / ${score.blow} Blow`;
+      }
+
+      function isUniqueDigits(arr) {
+        return new Set(arr).size === arr.length;
+      }
+
+      function hasNoZero(arr) {
+        return arr.every(d => d !== "0");
+      }
+
+      function isValidNumberArray(arr, length = state.digitCount) {
+        return arr.length === length &&
+          isUniqueDigits(arr) &&
+          hasNoZero(arr) &&
+          arr.every(d => DIGIT_SYMBOLS.includes(d));
+      }
+
+      function createEmptyHistoryRow() {
+        const div = document.createElement("div");
+        div.className = "history-row dim";
+        div.textContent = "—";
+        return div;
+      }
+
+      function appendHistoryRow(target, text, className = "") {
+        const div = document.createElement("div");
+        div.className = `history-row ${className}`.trim();
+        div.textContent = text;
+        target.appendChild(div);
+      }
+
+      function clearElement(el) {
+        el.innerHTML = "";
+      }
+
+      function setThinking(main, sub = "") {
+        ui.thinkingText.innerHTML = "";
+        const line1 = document.createElement("div");
+        line1.textContent = main;
+        ui.thinkingText.appendChild(line1);
+
+        if (sub) {
+          const line2 = document.createElement("small");
+          line2.textContent = sub;
+          ui.thinkingText.appendChild(line2);
+        }
+      }
+
+      async function showFlash(title, main, sub = "", duration = 1100) {
+        ui.flashTitle.textContent = title;
+        ui.flashMain.textContent = main;
+        ui.flashSub.textContent = sub;
+        ui.flashOverlay.classList.add("active");
+        await sleep(duration);
+        ui.flashOverlay.classList.remove("active");
+      }
+
+      function showRuleOverlay() {
+        ui.ruleOverlay.classList.add("active");
+      }
+
+      function hideRuleOverlay() {
+        ui.ruleOverlay.classList.remove("active");
+      }
+
+      function getDifficultyMeta(id) {
+        return DIFFICULTIES.find(d => d.id === id);
+      }
+
+      function getLearningData() {
+        try {
+          const raw = localStorage.getItem(LEARNING_STORAGE_KEY);
+          if (!raw) return { games: 0, answerStats: {}, secretHardness: {} };
+          const parsed = JSON.parse(raw);
+          return {
+            games: parsed.games || 0,
+            answerStats: parsed.answerStats || {},
+            secretHardness: parsed.secretHardness || {}
+          };
+        } catch {
+          return { games: 0, answerStats: {}, secretHardness: {} };
+        }
+      }
+
+      function saveLearningData(data) {
+        localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(data));
+      }
+
+      function updateLearningInfo() {
+        const data = getLearningData();
+        ui.learningInfo.textContent = `学習データ: ${data.games}試合分保存中（つよくなる専用）`;
+      }
+
+      function resetLearningData() {
+        localStorage.removeItem(LEARNING_STORAGE_KEY);
+        updateLearningInfo();
+        alert("つよくなるの学習データを削除しました。");
+      }
+
+      function renderDifficultyOptions() {
+        clearElement(ui.difficultyOptions);
+        DIFFICULTIES.forEach(diff => {
+          const btn = document.createElement("button");
+          btn.className = `option-button ${state.difficulty === diff.id ? "selected" : ""}`;
+          btn.innerHTML = `${diff.label}<small>${diff.desc}</small>`;
+          btn.addEventListener("click", () => {
+            state.difficulty = diff.id;
+            renderDifficultyOptions();
+          });
+          ui.difficultyOptions.appendChild(btn);
+        });
+      }
+
+      function renderDigitOptions() {
+        clearElement(ui.digitOptions);
+        DIGIT_COUNTS.forEach(count => {
+          const btn = document.createElement("button");
+          btn.className = `option-button ${state.digitCount === count ? "selected" : ""}`;
+          btn.innerHTML = `${count}桁<small>${count === 3 ? "デフォルト" : "1〜9・重複なし"}</small>`;
+          btn.addEventListener("click", () => {
+            state.digitCount = count;
+            renderDigitOptions();
+          });
+          ui.digitOptions.appendChild(btn);
+        });
+      }
+
+      function switchScreen(name) {
+        ui.screenStart.classList.remove("active");
+        ui.screenSecret.classList.remove("active");
+        ui.screenGame.classList.remove("active");
+
+        if (name === "start") ui.screenStart.classList.add("active");
+        if (name === "secret") ui.screenSecret.classList.add("active");
+        if (name === "game") ui.screenGame.classList.add("active");
+
+        state.phase = name;
+      }
+
+      function renderSecretInputSlots() {
+        clearElement(ui.secretInputSlots);
+        for (let i = 0; i < state.digitCount; i++) {
+          const slot = document.createElement("div");
+          slot.className = "slot hidden";
+          slot.textContent = state.currentInput[i] || "＊";
+          ui.secretInputSlots.appendChild(slot);
+        }
+        ui.secretSetupBadge.textContent = `${state.digitCount}桁`;
+      }
+
+      function renderCpuSecretSlots(animatedIndex = -1, reveal = false, displayDigits = null, revealedIndexes = []) {
+        clearElement(ui.cpuSecretSlots);
+
+        for (let i = 0; i < state.digitCount; i++) {
+          const slot = document.createElement("div");
+          let cls = "slot hidden";
+          if (i === animatedIndex) cls += " animating";
+          if (revealedIndexes.includes(i)) cls += " revealed";
+
+          let text = "？";
+          if (reveal && state.cpuSecretLocked) {
+            text = state.cpuSecret[i] || "？";
+          } else if (displayDigits && displayDigits[i]) {
+            text = displayDigits[i];
+          }
+
+          slot.className = cls;
+          slot.textContent = text;
+          ui.cpuSecretSlots.appendChild(slot);
+        }
+      }
+
+      function renderCurrentGuessSlots() {
+        clearElement(ui.currentGuessSlots);
+        for (let i = 0; i < state.digitCount; i++) {
+          const slot = document.createElement("div");
+          const digit = state.currentInput[i];
+          slot.className = `current-slot ${digit ? "" : "empty"}`.trim();
+          slot.textContent = digit || "・";
+          ui.currentGuessSlots.appendChild(slot);
+        }
+      }
+
+      function buildKeypad(container, mode) {
+        clearElement(container);
+
+        DIGIT_SYMBOLS.forEach(d => {
+          const btn = document.createElement("button");
+          const alreadyUsed = state.currentInput.includes(d);
+          btn.className = `key ${alreadyUsed ? "used" : ""}`;
+          btn.textContent = d;
+          btn.disabled = alreadyUsed || state.currentInput.length >= state.digitCount || state.winner || state.isCpuThinking || state.isCpuSelectingSecret;
+          btn.addEventListener("click", () => handleDigitInput(d, mode));
+          container.appendChild(btn);
+        });
+
+        const backBtn = document.createElement("button");
+        backBtn.className = "key action";
+        backBtn.textContent = "取り消し";
+        backBtn.disabled = state.winner || state.isCpuThinking || state.isCpuSelectingSecret;
+        backBtn.addEventListener("click", () => handleBackspace(mode));
+        container.appendChild(backBtn);
+
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "key action";
+        clearBtn.textContent = "全消去";
+        clearBtn.disabled = state.winner || state.isCpuThinking || state.isCpuSelectingSecret;
+        clearBtn.addEventListener("click", () => handleClearInput(mode));
+        container.appendChild(clearBtn);
+
+        const enterBtn = document.createElement("button");
+        enterBtn.className = "key action";
+        enterBtn.textContent = "確定";
+        enterBtn.disabled = state.currentInput.length !== state.digitCount || state.winner || state.isCpuThinking || state.isCpuSelectingSecret;
+        enterBtn.addEventListener("click", () => handleConfirm(mode));
+        container.appendChild(enterBtn);
+      }
+
+      function handleDigitInput(digit, mode) {
+        if (state.currentInput.length >= state.digitCount) return;
+        if (state.currentInput.includes(digit)) return;
+        state.currentInput.push(digit);
+
+        if (mode === "secret") {
+          renderSecretInputSlots();
+          buildKeypad(ui.secretKeypad, "secret");
+        } else {
+          renderCurrentGuessSlots();
+          buildKeypad(ui.gameKeypad, "guess");
+        }
+      }
+
+      function handleBackspace(mode) {
+        state.currentInput.pop();
+        if (mode === "secret") {
+          renderSecretInputSlots();
+          buildKeypad(ui.secretKeypad, "secret");
+        } else {
+          renderCurrentGuessSlots();
+          buildKeypad(ui.gameKeypad, "guess");
+        }
+      }
+
+      function handleClearInput(mode) {
+        state.currentInput = [];
+        if (mode === "secret") {
+          renderSecretInputSlots();
+          buildKeypad(ui.secretKeypad, "secret");
+        } else {
+          renderCurrentGuessSlots();
+          buildKeypad(ui.gameKeypad, "guess");
+        }
+      }
+
+      async function handleConfirm(mode) {
+        if (state.currentInput.length !== state.digitCount) return;
+        if (!isValidNumberArray(state.currentInput)) {
+          alert("1〜9の重複なしで入力してください。");
+          return;
+        }
+
+        if (mode === "secret") {
+          state.userSecret = state.currentInput.slice();
+          state.currentInput = [];
+          await beginGameAfterUserSecret();
+        } else {
+          if (state.isCpuThinking || state.isCpuSelectingSecret || state.winner) return;
+
+          const guess = state.currentInput.slice();
+          const duplicateGuess = state.userHistory.some(h => arrayToKey(h.guess) === arrayToKey(guess));
+          if (duplicateGuess) {
+            alert("同じ予想は避けてください。");
+            return;
+          }
+
+          state.currentInput = [];
+          renderCurrentGuessSlots();
+          buildKeypad(ui.gameKeypad, "guess");
+          await processUserTurn(guess);
+        }
+      }
+
+      function initNewMatch() {
+        state.userSecret = [];
+        state.cpuSecret = [];
+        state.cpuSecretLocked = false;
+        state.turn = 1;
+        state.currentInput = [];
+        state.winner = null;
+        state.endReason = "";
+        state.userHistory = [];
+        state.cpuHistory = [];
+        state.cpuPossibleAnswers = [];
+        state.cpuUsedGuesses = [];
+        state.cpuWorkingMemory = {
+          fixedPositions: Array(state.digitCount).fill(null),
+          knownDigits: new Set(),
+          excludedDigits: new Set()
+        };
+        state.inputMode = "secret";
+        state.isCpuThinking = false;
+        state.isCpuSelectingSecret = false;
+        state.allCandidates = generatePermutations(DIGIT_SYMBOLS, state.digitCount);
+        state.lastModeConfig = {
+          difficulty: state.difficulty,
+          digitCount: state.digitCount
+        };
+      }
+
+      function renderGameStaticInfo() {
+        const diff = getDifficultyMeta(state.difficulty);
+        ui.gameModeBadge.textContent = `${diff.label} / ${state.digitCount}桁`;
+        ui.turnLabel.textContent = `ターン ${state.turn}`;
+        ui.inputPhaseLabel.textContent = "ユーザー入力欄";
+        ui.guessBadge.textContent = `${state.digitCount}桁入力`;
+      }
+
+      function renderHistories() {
+        clearElement(ui.userGuessList);
+        clearElement(ui.userResultList);
+        clearElement(ui.cpuGuessList);
+        clearElement(ui.cpuResultList);
+
+        if (state.userHistory.length === 0) {
+          ui.userGuessList.appendChild(createEmptyHistoryRow());
+          ui.userResultList.appendChild(createEmptyHistoryRow());
+        } else {
+          state.userHistory.forEach(item => {
+            appendHistoryRow(ui.userGuessList, arrayToKey(item.guess));
+            const className = item.result.hit === state.digitCount ? "result-good" : "";
+            appendHistoryRow(ui.userResultList, formatResult(item.result), className);
+          });
+        }
+
+        if (state.cpuHistory.length === 0) {
+          ui.cpuGuessList.appendChild(createEmptyHistoryRow());
+          ui.cpuResultList.appendChild(createEmptyHistoryRow());
+        } else {
+          state.cpuHistory.forEach(item => {
+            appendHistoryRow(ui.cpuGuessList, arrayToKey(item.guess));
+            const className = item.result.hit === state.digitCount ? "result-good" : "";
+            appendHistoryRow(ui.cpuResultList, formatResult(item.result), className);
+          });
+        }
+      }
+
+      async function beginSecretEntry() {
+        initNewMatch();
+        renderDifficultyOptions();
+        renderDigitOptions();
+        state.currentInput = [];
+        renderSecretInputSlots();
+        buildKeypad(ui.secretKeypad, "secret");
+        switchScreen("secret");
+      }
+
+      async function beginGameAfterUserSecret() {
+        switchScreen("game");
+        renderGameStaticInfo();
+        renderCurrentGuessSlots();
+        buildKeypad(ui.gameKeypad, "guess");
+        renderHistories();
+        renderCpuSecretSlots();
+        setThinking("CPUが考え中…", "秘密数字を選定しています。");
+        await selectCpuSecretWithAnimation();
+        state.cpuPossibleAnswers = state.allCandidates.slice();
+        state.inputMode = "guess";
+        renderGameStaticInfo();
+        setThinking("あなたの番です", "ユーザー入力欄に予想を入れてください。");
+        buildKeypad(ui.gameKeypad, "guess");
+      }
+
+      function getGrowingPriorWeight(candidateArray) {
+        const data = getLearningData();
+        const key = arrayToKey(candidateArray);
+        const entry = data.answerStats[key];
+        if (!entry) return 1;
+
+        const pickScore = 1 + (entry.count || 0) * 0.35;
+        const positionBonus = (entry.positionWeighted || 0) * 0.06;
+        return pickScore + positionBonus;
+      }
+
+      function getGrowingSecretWeight(candidateArray) {
+        const data = getLearningData();
+        const key = arrayToKey(candidateArray);
+        const record = data.secretHardness[key];
+        if (!record) return 1;
+        const avgTurns = record.totalTurns / Math.max(1, record.games);
+        return 1 + avgTurns * 0.18;
+      }
+
+      function weightedRandomPick(candidates, weightFn) {
+        let total = 0;
+        const weighted = candidates.map(c => {
+          const w = Math.max(0.0001, weightFn(c));
+          total += w;
+          return { c, w };
+        });
+
+        let r = Math.random() * total;
+        for (const item of weighted) {
+          r -= item.w;
+          if (r <= 0) return item.c;
+        }
+        return weighted[weighted.length - 1].c;
+      }
+
+      async function selectCpuSecretWithAnimation() {
+        state.isCpuSelectingSecret = true;
+        buildKeypad(ui.gameKeypad, "guess");
+
+        let selected;
+        if (state.difficulty === "growing") {
+          selected = weightedRandomPick(state.allCandidates, getGrowingSecretWeight);
+        } else {
+          selected = choice(state.allCandidates);
+        }
+
+        state.cpuSecret = selected.slice();
+        state.cpuSecretLocked = true;
+
+        const visibleDigits = Array(state.digitCount).fill("？");
+        renderCpuSecretSlots(-1, false, visibleDigits);
+
+        const thoughts = [
+          "候補を確認しています…",
+          "重複しない数字を選んでいます…",
+          "次の桁を決めています…",
+          "秘密数字を固定しています…"
+        ];
+
+        for (let i = 0; i < state.digitCount; i++) {
+          setThinking("CPUが考え中…", thoughts[i % thoughts.length]);
+          for (let j = 0; j < 8; j++) {
+            visibleDigits[i] = DIGIT_SYMBOLS[randomInt(DIGIT_SYMBOLS.length)];
+            renderCpuSecretSlots(i, false, visibleDigits);
+            await sleep(70);
+          }
+          visibleDigits[i] = "？";
+          renderCpuSecretSlots(i, false, visibleDigits);
+          await sleep(340);
+        }
+
+        state.isCpuSelectingSecret = false;
+        renderCpuSecretSlots(-1, false, Array(state.digitCount).fill("？"));
+      }
+
+      async function processUserTurn(userGuess) {
+        setThinking("判定中…", "あなたの予想をチェックしています。");
+
+        const userResult = scoreHitBlow(state.cpuSecret, userGuess);
+        state.userHistory.push({
+          guess: userGuess.slice(),
+          result: userResult
+        });
+        renderHistories();
+
+        await showFlash("ユーザーの判定", formatResult(userResult), arrayToKey(userGuess));
+
+        if (userResult.hit === state.digitCount) {
+          endGame("user");
+          return;
+        }
+
+        state.isCpuThinking = true;
+        buildKeypad(ui.gameKeypad, "guess");
+        await processCpuTurn();
+      }
+
+      function filterCandidatesByHistory(candidates, history) {
+        return candidates.filter(candidate => {
+          return history.every(entry => {
+            const s = scoreHitBlow(candidate, entry.guess);
+            return s.hit === entry.result.hit && s.blow === entry.result.blow;
+          });
+        });
+      }
+
+      function buildResponsePartitionMap(guess, candidates) {
+        const map = new Map();
+        for (const answer of candidates) {
+          const key = scoreToKey(scoreHitBlow(answer, guess));
+          map.set(key, (map.get(key) || 0) + 1);
+        }
+        return map;
+      }
+
+      function evaluateGuessQuality(guess, candidates, useGrowingPrior = false) {
+        const partitionMap = buildResponsePartitionMap(guess, candidates);
+        let maxBucket = 0;
+        let entropy = 0;
+
+        for (const count of partitionMap.values()) {
+          if (count > maxBucket) maxBucket = count;
+          const p = count / candidates.length;
+          entropy -= p * Math.log2(p);
+        }
+
+        let answerWeight = 0;
+        for (const answer of candidates) {
+          if (arrayToKey(answer) === arrayToKey(guess)) {
+            answerWeight = useGrowingPrior ? getGrowingPriorWeight(answer) : 1;
+            break;
+          }
+        }
+
+        return { maxBucket, entropy, answerWeight };
+      }
+
+      function chooseStrongGuess(candidates, useGrowingPrior = false) {
+        if (candidates.length === 1) return candidates[0].slice();
+
+        let bestGuess = null;
+        let bestScore = null;
+
+        for (const guess of candidates) {
+          const evalResult = evaluateGuessQuality(guess, candidates, useGrowingPrior);
+          const score = {
+            answerWeight: evalResult.answerWeight,
+            maxBucket: evalResult.maxBucket,
+            entropy: evalResult.entropy
+          };
+
+          if (!bestScore) {
+            bestScore = score;
+            bestGuess = guess;
+            continue;
+          }
+
+          if (score.answerWeight > bestScore.answerWeight) {
+            bestScore = score;
+            bestGuess = guess;
+            continue;
+          }
+          if (score.answerWeight < bestScore.answerWeight) continue;
+
+          if (score.maxBucket < bestScore.maxBucket) {
+            bestScore = score;
+            bestGuess = guess;
+            continue;
+          }
+          if (score.maxBucket > bestScore.maxBucket) continue;
+
+          if (score.entropy > bestScore.entropy) {
+            bestScore = score;
+            bestGuess = guess;
+          }
+        }
+
+        return bestGuess.slice();
+      }
+
+      function chooseWeakGuess() {
+        const unused = state.allCandidates.filter(c => !state.cpuUsedGuesses.includes(arrayToKey(c)));
+        return choice(unused.length ? unused : state.allCandidates).slice();
+      }
+
+      function chooseNormalGuess() {
+        const memory = state.cpuWorkingMemory;
+        const consistent = filterCandidatesByHistory(state.allCandidates, state.cpuHistory)
+          .filter(c => !state.cpuUsedGuesses.includes(arrayToKey(c)));
+
+        if (consistent.length === 0) return chooseWeakGuess();
+
+        const last = state.cpuHistory[state.cpuHistory.length - 1];
+        if (last) {
+          const guessed = last.guess;
+          const result = last.result;
+
+          if (result.hit + result.blow === 0) {
+            guessed.forEach(d => memory.excludedDigits.add(d));
+          } else {
+            guessed.forEach(d => {
+              if (!memory.excludedDigits.has(d)) memory.knownDigits.add(d);
+            });
+            if (result.hit >= 1) {
+              for (let i = 0; i < guessed.length; i++) {
+                if (Math.random() < 0.55 && !memory.fixedPositions[i]) {
+                  memory.fixedPositions[i] = guessed[i];
+                }
+              }
+            }
+          }
+        }
+
+        const filtered = consistent.filter(c => {
+          for (let i = 0; i < c.length; i++) {
+            if (memory.fixedPositions[i] && c[i] !== memory.fixedPositions[i]) return false;
+            if (memory.excludedDigits.has(c[i])) return false;
+          }
+          return true;
+        });
+
+        const pool = filtered.length ? filtered : consistent;
+
+        const scored = pool.map(c => {
+          let score = 0;
+          for (let i = 0; i < c.length; i++) {
+            if (memory.fixedPositions[i] && c[i] === memory.fixedPositions[i]) score += 3.5;
+            if (memory.knownDigits.has(c[i])) score += 1.25;
+            if (!memory.excludedDigits.has(c[i])) score += 0.3;
+          }
+          score += Math.random() * 3.2;
+          return { c, score };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        return scored[0].c.slice();
+      }
+
+      function chooseCpuGuess() {
+        state.cpuPossibleAnswers = filterCandidatesByHistory(state.cpuPossibleAnswers, state.cpuHistory);
+
+        let guess;
+        switch (state.difficulty) {
+          case "weak":
+            guess = chooseWeakGuess();
+            break;
+          case "normal":
+            guess = chooseNormalGuess();
+            break;
+          case "strong":
+            guess = chooseStrongGuess(state.cpuPossibleAnswers.slice(), false);
+            break;
+          case "growing":
+            guess = chooseStrongGuess(state.cpuPossibleAnswers.slice(), true);
+            break;
+          default:
+            guess = chooseWeakGuess();
+            break;
+        }
+
+        const key = arrayToKey(guess);
+        if (state.cpuUsedGuesses.includes(key)) {
+          const unused = state.cpuPossibleAnswers.filter(c => !state.cpuUsedGuesses.includes(arrayToKey(c)));
+          if (unused.length) guess = unused[0].slice();
+        }
+
+        state.cpuUsedGuesses.push(arrayToKey(guess));
+        return guess;
+      }
+
+      function shuffledIndexes(length) {
+        const arr = [...Array(length)].map((_, i) => i);
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = randomInt(i + 1);
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      async function animateCpuGuessReveal(guess) {
+        const displayDigits = Array(state.digitCount).fill("？");
+        const revealedIndexes = [];
+        const order = shuffledIndexes(state.digitCount);
+
+        for (const index of order) {
+          for (let k = 0; k < 5; k++) {
+            displayDigits[index] = DIGIT_SYMBOLS[randomInt(DIGIT_SYMBOLS.length)];
+            renderCpuSecretSlots(index, false, displayDigits, revealedIndexes);
+            await sleep(80);
+          }
+
+          displayDigits[index] = guess[index];
+          revealedIndexes.push(index);
+          renderCpuSecretSlots(-1, false, displayDigits, revealedIndexes);
+          await sleep(280);
+        }
+
+        await sleep(300);
+        renderCpuSecretSlots(-1, false, Array(state.digitCount).fill("？"), []);
+      }
+
+      async function processCpuTurn() {
+        const beforeFilterCount = state.cpuPossibleAnswers.length;
+        state.cpuPossibleAnswers = filterCandidatesByHistory(state.cpuPossibleAnswers, state.cpuHistory);
+        const afterFilterCount = state.cpuPossibleAnswers.length;
+
+        const startTime = performance.now();
+        const diffLabel = getDifficultyMeta(state.difficulty).label;
+        const guess = chooseCpuGuess();
+        const elapsedCalc = performance.now() - startTime;
+
+        const minShowTime = 5000;
+        const maxShowTime = 60000;
+        const targetTime = Math.min(maxShowTime, Math.max(minShowTime, elapsedCalc + 5000));
+
+        const lastHistory = state.cpuHistory[state.cpuHistory.length - 1];
+        const lastLine = lastHistory
+          ? `前回の予想 ${arrayToKey(lastHistory.guess)} の結果 ${lastHistory.result.hit}Hit ${lastHistory.result.blow}Blow と矛盾する候補を除外しています…`
+          : "初手なので、すべての候補から出発しています…";
+
+        const candidateLine =
+          `候補数を ${beforeFilterCount} 通りから ${afterFilterCount} 通りまで絞っています…`;
+
+        let modeLine = "";
+        if (state.difficulty === "weak") {
+          modeLine = "よわいなので、過去結果との整合は深く考えずランダム寄りに選んでいます…";
+        } else if (state.difficulty === "normal") {
+          modeLine = "ふつうなので、当たりそうな数字や位置を強めに信じつつ、少し博打も混ぜています…";
+        } else if (state.difficulty === "strong") {
+          modeLine = "つよいなので、残っている全候補に対して応答パターンの分かれ方が良い手を探しています…";
+        } else {
+          modeLine = "つよくなるなので、全候補の分割効率に加えて、過去にあなたが選びやすかった数字傾向も重みにしています…";
+        }
+
+        const guessLine =
+          `今回の予想候補 ${arrayToKey(guess)} は、今当たる可能性と次ターン以降の絞り込みやすさの両方を見て選んでいます…`;
+
+        const revealLine =
+          "確定した桁から順に表示します。まだ確信の薄い桁は後回しになることがあります…";
+
+        const thoughtLines = [
+          lastLine,
+          candidateLine,
+          modeLine,
+          guessLine,
+          revealLine
+        ];
+
+        const revealTime = state.digitCount * 700 + 300;
+        const thinkingBudget = Math.max(0, targetTime - revealTime);
+        const perStep = Math.max(700, Math.floor(thinkingBudget / thoughtLines.length || 700));
+
+        for (let i = 0; i < thoughtLines.length; i++) {
+          setThinking("CPUが考え中…", thoughtLines[i]);
+          await sleep(perStep);
+        }
+
+        setThinking("CPUが考え中…", `予想 ${arrayToKey(guess)} を、確定した桁から表示しています…`);
+        await animateCpuGuessReveal(guess);
+
+        const cpuResult = scoreHitBlow(state.userSecret, guess);
+        state.cpuHistory.push({
+          guess: guess.slice(),
+          result: cpuResult
+        });
+
+        renderHistories();
+        await showFlash("CPUの判定", formatResult(cpuResult), arrayToKey(guess));
+
+        if (cpuResult.hit === state.digitCount) {
+          endGame("cpu");
+          return;
+        }
+
+        state.turn += 1;
+        state.isCpuThinking = false;
+        ui.turnLabel.textContent = `ターン ${state.turn}`;
+        setThinking("あなたの番です", "ユーザー入力欄に予想を入れてください。");
+        buildKeypad(ui.gameKeypad, "guess");
+      }
+
+      function revealCpuSecretInPanel() {
+        renderCpuSecretSlots(-1, true);
+      }
+
+      function updateGrowingLearning(winner) {
+        if (state.difficulty !== "growing") return;
+
+        const data = getLearningData();
+        data.games += 1;
+
+        const answerKey = arrayToKey(state.userSecret);
+        if (!data.answerStats[answerKey]) {
+          data.answerStats[answerKey] = { count: 0, positionWeighted: 0 };
+        }
+        data.answerStats[answerKey].count += 1;
+
+        for (let i = 0; i < state.userSecret.length; i++) {
+          const numeric = Number(state.userSecret[i]);
+          data.answerStats[answerKey].positionWeighted += numeric * (i + 1);
+        }
+
+        const secretKey = arrayToKey(state.cpuSecret);
+        if (!data.secretHardness[secretKey]) {
+          data.secretHardness[secretKey] = { games: 0, totalTurns: 0, userWinsAgainstIt: 0 };
+        }
+        data.secretHardness[secretKey].games += 1;
+        data.secretHardness[secretKey].totalTurns += state.userHistory.length;
+        if (winner === "user") {
+          data.secretHardness[secretKey].userWinsAgainstIt += 1;
+        }
+
+        saveLearningData(data);
+        updateLearningInfo();
+      }
+
+      function endGame(winner) {
+        state.winner = winner;
+        state.isCpuThinking = false;
+        state.isCpuSelectingSecret = false;
+        revealCpuSecretInPanel();
+        updateGrowingLearning(winner);
+        buildKeypad(ui.gameKeypad, "guess");
+        showResultOverlay(winner);
+      }
+
+      function retireGame() {
+        if (state.winner) return;
+
+        state.isCpuThinking = false;
+        state.isCpuSelectingSecret = false;
+        state.currentInput = [];
+        renderCurrentGuessSlots();
+        buildKeypad(ui.gameKeypad, "guess");
+
+        state.endReason = "retire";
+        endGame("cpu");
+      }
+
+      function showResultOverlay(winner) {
+        const cpuSecret = arrayToKey(state.cpuSecret);
+        const userSecret = arrayToKey(state.userSecret);
+
+        let winnerText = "";
+        let winnerClass = "";
+        let extraLine = "";
+
+        if (winner === "user") {
+          winnerText = "あなたの勝ち";
+          winnerClass = "user";
+          extraLine = "<div>決着理由: <strong>CPUの秘密数字を先に当てた</strong></div>";
+        } else {
+          winnerText = state.endReason === "retire" ? "あなたの敗北（リタイア）" : "CPUの勝ち";
+          winnerClass = "cpu";
+          extraLine = state.endReason === "retire"
+            ? "<div>決着理由: <strong>リタイア</strong></div>"
+            : "<div>決着理由: <strong>CPUがあなたの秘密数字を当てた</strong></div>";
+        }
+
+        ui.winnerText.textContent = winnerText;
+        ui.winnerText.className = `winner ${winnerClass}`;
+
+        ui.resultSummary.innerHTML = `
+          ${extraLine}
+          <div>あなたの秘密数字: <strong>${userSecret}</strong></div>
+          <div>CPUの秘密数字: <strong>${cpuSecret}</strong></div>
+          <div>あなたの試行回数: <strong>${state.userHistory.length}</strong></div>
+          <div>CPUの試行回数: <strong>${state.cpuHistory.length}</strong></div>
+          <div>設定: <strong>${getDifficultyMeta(state.difficulty).label} / ${state.digitCount}桁</strong></div>
+        `;
+
+        setThinking("対戦終了", state.endReason === "retire" ? "あなたがリタイアしました。" : "結果画面を表示しています。");
+        ui.resultOverlay.classList.add("active");
+      }
+
+      function hideResultOverlay() {
+        ui.resultOverlay.classList.remove("active");
+      }
+
+      function rerenderGameInput() {
+        renderCurrentGuessSlots();
+        buildKeypad(ui.gameKeypad, "guess");
+      }
+
+      function boot() {
+        renderDifficultyOptions();
+        renderDigitOptions();
+        updateLearningInfo();
+
+        ui.startBtn.addEventListener("click", beginSecretEntry);
+        ui.resetLearningBtn.addEventListener("click", resetLearningData);
+        ui.retireBtn.addEventListener("click", retireGame);
+
+        ui.ruleBtn.addEventListener("click", showRuleOverlay);
+        ui.closeRuleBtn.addEventListener("click", hideRuleOverlay);
+        ui.ruleOverlay.addEventListener("click", (e) => {
+          if (e.target === ui.ruleOverlay) hideRuleOverlay();
+        });
+
+        ui.backToMenuBtn.addEventListener("click", () => {
+          hideResultOverlay();
+          switchScreen("start");
+        });
+
+        ui.playAgainBtn.addEventListener("click", async () => {
+          hideResultOverlay();
+          if (state.lastModeConfig) {
+            state.difficulty = state.lastModeConfig.difficulty;
+            state.digitCount = state.lastModeConfig.digitCount;
+          }
+          renderDifficultyOptions();
+          renderDigitOptions();
+          await beginSecretEntry();
+        });
+
+        rerenderGameInput();
+      }
+
+      boot();
+    })();
+  </script>
+</body>
+</html>
